@@ -16,8 +16,8 @@
     .container {
       max-width: 800px;
       margin: 2rem auto;
-      background: rgba(0, 0, 0, 0.6); /* Thay đổi background cho phù hợp tone màu */
-      color: #fff; /* Chữ màu trắng để tương phản */
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
       padding: 2rem;
       border-radius: 8px;
       box-shadow: 0 8px 16px rgba(0,0,0,0.3);
@@ -40,7 +40,8 @@
       transition: transform 0.2s, box-shadow 0.2s;
       cursor: pointer;
     }
-    .line-card:hover, .line-card.active {
+    /* Khi được chọn, luôn có nền sáng */
+    .line-card.active {
       transform: translateY(-3px);
       box-shadow: 0 8px 12px rgba(0,0,0,0.3);
       border: 2px solid #2196F3;
@@ -239,7 +240,7 @@
         // Dừng ghi âm
         isRecording = false;
         stopVolumeMonitoring();
-        if(recognition) {
+        if (recognition) {
           recognition.stop();
         }
         toggleBtn.textContent = "Start Recording";
@@ -275,6 +276,7 @@
 
     // ===== Hàm đánh giá phát âm =====
     function evaluatePronunciation(original, transcript) {
+      console.log("Evaluation triggered with transcript:", transcript);
       // Loại bỏ dấu câu khỏi nội dung gốc
       const cleanOriginal = original.replace(/[.,?!]/g, "");
       const originalWords = cleanOriginal.split(/\s+/);
@@ -312,6 +314,7 @@
         <strong>Volume Score:</strong> ${volumeScore} / 100<br>
         <strong>Speed Score:</strong> ${speedScore} / 100 (Your speed: ${wpm} wpm, ideal: ~150 wpm)
       `;
+      console.log("Evaluation result displayed.");
     }
   </script>
 </body>
