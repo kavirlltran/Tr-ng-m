@@ -26,31 +26,31 @@
       text-align: center;
       margin-bottom: 1rem;
     }
-    p {
+    p.description {
       text-align: center;
     }
-    .line-card {
-      position: relative;
+    /* Container chứa tất cả các câu */
+    #contentBox {
       background: rgba(255,255,255,0.9);
       color: #000;
       border-radius: 8px;
       padding: 1rem;
       margin-bottom: 1.5rem;
       box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    /* Mỗi câu */
+    .sentence {
+      padding: 0.5rem;
       cursor: pointer;
+      transition: background-color 0.2s, border 0.2s;
     }
-    /* Khi được chọn, luôn có nền sáng */
-    .line-card.active {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 12px rgba(0,0,0,0.3);
-      border: 2px solid #2196F3;
+    .sentence:not(:last-child) {
+      border-bottom: 1px solid #ccc;
+    }
+    /* Câu được chọn luôn sáng */
+    .sentence.active {
       background-color: #f7f7f7;
-      color: #000;
-    }
-    .line-text {
-      font-size: 1.2rem;
-      line-height: 1.5;
+      border-left: 4px solid #2196F3;
     }
     .controls {
       display: flex;
@@ -105,30 +105,18 @@
 <body>
   <div class="container">
     <h1>Advanced Pronunciation Checker</h1>
-    <p>
+    <p class="description">
       Select a sentence to practice and then use the button below to record your pronunciation.
       When you stop recording, the evaluation result for the selected sentence will be displayed below.
     </p>
     
-    <!-- Danh sách 5 câu nội dung -->
-    <div class="line-card" data-line="1">
-      <div class="line-text">We should ‘finish the ‘project for our ‘history ‘class</div>
-    </div>
-    
-    <div class="line-card" data-line="2">
-      <div class="line-text">‘Peter is re‘vising for his e‘xam ‘next ‘week.</div>
-    </div>
-    
-    <div class="line-card" data-line="3">
-      <div class="line-text">‘Students will ‘spend more ‘time ‘working with ‘other ‘classmates.</div>
-    </div>
-    
-    <div class="line-card" data-line="4">
-      <div class="line-text">I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things</div>
-    </div>
-    
-    <div class="line-card" data-line="5">
-      <div class="line-text">I have ‘installed some ‘apps on my ‘phone</div>
+    <!-- Container chứa toàn bộ 5 câu -->
+    <div id="contentBox">
+      <div class="sentence" data-line="1">We should ‘finish the ‘project for our ‘history ‘class</div>
+      <div class="sentence" data-line="2">‘Peter is re‘vising for his e‘xam ‘next ‘week.</div>
+      <div class="sentence" data-line="3">‘Students will ‘spend more ‘time ‘working with ‘other ‘classmates.</div>
+      <div class="sentence" data-line="4">I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things</div>
+      <div class="sentence" data-line="5">I have ‘installed some ‘apps on my ‘phone</div>
     </div>
     
     <!-- Nút ghi âm (toggle: start/stop) và thanh sóng âm -->
@@ -147,8 +135,8 @@
 
   <script>
     // ======= Các biến toàn cục =======
-    let selectedLineCard = null;
-    let selectedLineText = "";
+    let selectedSentence = null;
+    let selectedSentenceText = "";
     let recognition;
     let isRecording = false;
     let recordStartTime, recordEndTime;
@@ -158,9 +146,22 @@
     let volumeSum = 0, volumeCount = 0;
     let volumeMonitorId = null;
 
-    // Tham chiếu đến thanh sóng âm
+    // Tham chiếu đến các phần tử
     const waveContainer = document.getElementById("waveContainer");
     const waveBar = document.getElementById("waveBar");
+    const sentences = document.querySelectorAll(".sentence");
+
+    // Xử lý chọn câu: khi click vào một câu, tất cả được bỏ active và câu đó được active
+    sentences.forEach(sentence => {
+      sentence.addEventListener("click", () => {
+        sentences.forEach(s => s.classList.remove("active"));
+        sentence.classList.add("active");
+        selectedSentence = sentence;
+        selectedSentenceText = sentence.textContent.trim();
+        console.log("Selected sentence:", selectedSentenceText);
+        document.getElementById("evalContent").textContent = "Ready to record the selected sentence.";
+      });
+    });
 
     // Hàm khởi tạo lại SpeechRecognition sau mỗi lần ghi âm
     function initSpeechRecognition() {
@@ -173,7 +174,6 @@
       recog.lang = "en-US";
       recog.interimResults = false;
       recog.maxAlternatives = 1;
-      // Thiết lập continuous nếu cần (ở đây để false nhằm đảm bảo ghi âm một lần)
       recog.continuous = false;
       
       recog.addEventListener('start', () => {
@@ -184,13 +184,12 @@
         const transcript = event.results[0][0].transcript;
         console.log("Recognized:", transcript);
         recordEndTime = Date.now();
-        evaluatePronunciation(selectedLineText, transcript);
+        evaluatePronunciation(selectedSentenceText, transcript);
       });
       
       recog.addEventListener('end', () => {
         console.log("Speech recognition ended.");
-        // Nếu không nhận được kết quả nào, hiển thị thông báo
-        if(!isRecording && !document.getElementById("evalContent").innerHTML.includes("Word Accuracy")) {
+        if (!isRecording && !document.getElementById("evalContent").innerHTML.includes("Word Accuracy")) {
           document.getElementById("evalContent").innerHTML = "<strong>No speech detected.</strong> Please try again.";
           console.log("No speech detected.");
         }
@@ -202,11 +201,10 @@
       return recog;
     }
 
-    // ===== Yêu cầu truy cập Micro khi tải trang =====
+    // Yêu cầu truy cập Micro khi tải trang
     async function initMicrophone() {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Khởi tạo AudioContext để đo âm lượng
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioContext.createMediaStreamSource(mediaStream);
         analyser = audioContext.createAnalyser();
@@ -215,7 +213,6 @@
         dataArray = new Uint8Array(bufferLength);
         source.connect(analyser);
         console.log("Microphone and AudioContext initialized.");
-        // Cho phép nút ghi âm
         document.getElementById("toggleBtn").disabled = false;
       } catch (err) {
         alert("Error accessing microphone: " + err);
@@ -223,74 +220,51 @@
     }
     window.addEventListener("load", initMicrophone);
 
-    // ===== Xử lý sự kiện chọn dòng =====
-    const lineCards = document.querySelectorAll(".line-card");
-    lineCards.forEach(card => {
-      card.addEventListener("click", () => {
-        // Loại bỏ active của tất cả các card
-        lineCards.forEach(c => c.classList.remove("active"));
-        card.classList.add("active");
-        selectedLineCard = card;
-        selectedLineText = card.querySelector(".line-text").textContent.trim();
-        console.log("Selected sentence:", selectedLineText);
-        document.getElementById("evalContent").textContent = "Ready to record the selected sentence.";
-      });
-    });
-
-    // ===== Quản lý ghi âm với nút toggle =====
+    // Quản lý ghi âm với nút toggle
     const toggleBtn = document.getElementById("toggleBtn");
     toggleBtn.addEventListener("click", () => {
       // Nếu chưa có câu nào được chọn, tự động chọn câu đầu tiên
-      if (!selectedLineText) {
-        const firstCard = document.querySelector(".line-card");
-        if (firstCard) {
-          firstCard.classList.add("active");
-          selectedLineCard = firstCard;
-          selectedLineText = firstCard.querySelector(".line-text").textContent.trim();
-          console.log("Auto-selected sentence:", selectedLineText);
+      if (!selectedSentenceText) {
+        const first = document.querySelector(".sentence");
+        if (first) {
+          first.classList.add("active");
+          selectedSentence = first;
+          selectedSentenceText = first.textContent.trim();
+          console.log("Auto-selected sentence:", selectedSentenceText);
         }
       }
       if (!isRecording) {
-        // Bắt đầu ghi âm
         isRecording = true;
         recordStartTime = Date.now();
-        // Reset dữ liệu âm lượng
         volumeSum = 0;
         volumeCount = 0;
-        // Hiển thị thanh sóng âm
         waveContainer.style.display = "block";
         startVolumeMonitoring();
-        // Khởi tạo lại SpeechRecognition cho mỗi phiên ghi âm
         recognition = initSpeechRecognition();
         if (recognition) {
           recognition.start();
           toggleBtn.textContent = "Stop Recording";
-          toggleBtn.style.color = "red"; // Khi đang ghi âm -> màu đỏ
+          toggleBtn.style.color = "red";
           console.log("Recording started...");
         } else {
           isRecording = false;
         }
       } else {
-        // Dừng ghi âm
         isRecording = false;
         stopVolumeMonitoring();
-        if (recognition) {
-          recognition.stop();
-        }
+        if (recognition) recognition.stop();
         toggleBtn.textContent = "Start Recording";
-        toggleBtn.style.color = "blue"; // Khi chưa ghi âm -> màu xanh
-        // Ẩn thanh sóng âm khi dừng
+        toggleBtn.style.color = "blue";
         waveContainer.style.display = "none";
         console.log("Recording stopped.");
       }
     });
 
-    // ===== Hàm theo dõi âm lượng và cập nhật thanh sóng âm =====
+    // Hàm theo dõi âm lượng và cập nhật thanh sóng âm
     function startVolumeMonitoring() {
       function monitor() {
         if (!isRecording) return;
         analyser.getByteTimeDomainData(dataArray);
-        // Tính RMS (gốc bình phương trung bình) của tín hiệu
         let sumSquares = 0;
         for (let i = 0; i < dataArray.length; i++) {
           const normalized = (dataArray[i] - 128) / 128;
@@ -299,11 +273,8 @@
         const rms = Math.sqrt(sumSquares / dataArray.length);
         volumeSum += rms;
         volumeCount++;
-
-        // Tính phần trăm cho thanh sóng (ví dụ, ngưỡng 0.15 như trước)
         let wavePercent = Math.min(100, Math.round((rms / 0.15) * 100));
         waveBar.style.width = wavePercent + "%";
-
         volumeMonitorId = requestAnimationFrame(monitor);
       }
       monitor();
@@ -315,18 +286,15 @@
       }
     }
 
-    // ===== Hàm đánh giá phát âm =====
+    // Hàm đánh giá phát âm
     function evaluatePronunciation(original, transcript) {
       console.log("Evaluation triggered with transcript:", transcript);
-      // Loại bỏ dấu câu khỏi nội dung gốc
       const cleanOriginal = original.replace(/[.,?!]/g, "");
       const originalWords = cleanOriginal.split(/\s+/);
       const transcriptWords = transcript.split(/\s+/);
-  
       let correctCount = 0;
       let resultHTML = "";
       originalWords.forEach((word, idx) => {
-        // Loại bỏ ký tự trọng âm khỏi từ gốc
         const normalizedOriginal = word.replace(/['‘’]/g, "").toLowerCase();
         const transcriptWord = transcriptWords[idx] ? transcriptWords[idx].toLowerCase() : "";
         if (normalizedOriginal === transcriptWord) {
@@ -337,11 +305,21 @@
         }
       });
       const wordAccuracy = Math.round((correctCount / originalWords.length) * 100);
-
-      // ===== Đánh giá âm lượng =====
       const avgVolume = volumeCount ? volumeSum / volumeCount : 0;
       let volumeScore = Math.min(100, Math.round((avgVolume / 0.15) * 100));
       if (volumeScore > 100) volumeScore = 100;
-
-      // ===== Đánh giá tốc độ đọc =====
-      const durationSec = (recordEn
+      const durationSec = (recordEndTime - recordStartTime) / 1000;
+      const wpm = Math.round((originalWords.length / durationSec) * 60);
+      let speedScore = Math.max(0, 100 - Math.abs(150 - wpm));
+  
+      document.getElementById("evalContent").innerHTML = `
+        <strong>Word Accuracy:</strong> ${wordAccuracy}% (${correctCount}/${originalWords.length})<br>
+        <strong>Transcript:</strong> ${resultHTML}<br>
+        <strong>Volume Score:</strong> ${volumeScore} / 100<br>
+        <strong>Speed Score:</strong> ${speedScore} / 100 (Your speed: ${wpm} wpm, ideal: ~150 wpm)
+      `;
+      console.log("Evaluation result displayed.");
+    }
+  </script>
+</body>
+</html>
