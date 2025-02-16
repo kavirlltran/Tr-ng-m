@@ -54,7 +54,8 @@
     }
     .controls {
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
       margin-bottom: 1rem;
     }
     button {
@@ -65,9 +66,26 @@
       background-color: #e0e0e0;
       cursor: pointer;
       transition: background-color 0.2s, color 0.2s;
+      margin-bottom: 1rem;
     }
     button:hover {
       background-color: #d5d5d5;
+    }
+    /* Thanh hiển thị sóng âm thanh */
+    #waveContainer {
+      width: 100%;
+      height: 20px;
+      background-color: #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      display: none; /* Ẩn khi không ghi âm */
+    }
+    #waveBar {
+      height: 100%;
+      width: 0%;
+      background-color: #2196F3;
+      transition: width 0.1s ease-out;
     }
     #evaluation {
       margin-top: 1rem;
@@ -113,9 +131,12 @@
       <div class="line-text">I have ‘installed some ‘apps on my ‘phone</div>
     </div>
     
-    <!-- Nút ghi âm (toggle: start/stop) -->
+    <!-- Nút ghi âm (toggle: start/stop) và thanh sóng âm -->
     <div class="controls">
       <button id="toggleBtn" disabled style="color: blue;">Start Recording</button>
+      <div id="waveContainer">
+        <div id="waveBar"></div>
+      </div>
     </div>
     
     <!-- Khu vực hiển thị kết quả đánh giá -->
@@ -136,6 +157,10 @@
     let audioContext, analyser, dataArray, mediaStream;
     let volumeSum = 0, volumeCount = 0;
     let volumeMonitorId = null;
+
+    // Tham chiếu đến thanh sóng âm
+    const waveContainer = document.getElementById("waveContainer");
+    const waveBar = document.getElementById("waveBar");
 
     // Hàm khởi tạo lại SpeechRecognition sau mỗi lần ghi âm
     function initSpeechRecognition() {
@@ -225,6 +250,8 @@
         // Reset dữ liệu âm lượng
         volumeSum = 0;
         volumeCount = 0;
+        // Hiển thị thanh sóng âm
+        waveContainer.style.display = "block";
         startVolumeMonitoring();
         // Khởi tạo lại SpeechRecognition cho mỗi phiên ghi âm
         recognition = initSpeechRecognition();
@@ -245,11 +272,13 @@
         }
         toggleBtn.textContent = "Start Recording";
         toggleBtn.style.color = "blue"; // Khi chưa ghi âm -> màu xanh
+        // Ẩn thanh sóng âm khi dừng
+        waveContainer.style.display = "none";
         console.log("Recording stopped.");
       }
     });
 
-    // ===== Hàm theo dõi âm lượng =====
+    // ===== Hàm theo dõi âm lượng và cập nhật thanh sóng âm =====
     function startVolumeMonitoring() {
       function monitor() {
         if (!isRecording) return;
@@ -263,6 +292,11 @@
         const rms = Math.sqrt(sumSquares / dataArray.length);
         volumeSum += rms;
         volumeCount++;
+
+        // Tính phần trăm cho thanh sóng (ví dụ, ngưỡng 0.15 như trước)
+        let wavePercent = Math.min(100, Math.round((rms / 0.15) * 100));
+        waveBar.style.width = wavePercent + "%";
+
         volumeMonitorId = requestAnimationFrame(monitor);
       }
       monitor();
