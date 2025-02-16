@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pronunciation Checker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Đặt nền là ảnh maytinh.png */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: url('maytinh.png') no-repeat center center fixed;
+      background-size: cover;
+    }
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .line-card {
+      position: relative;
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+    .line-card:hover, .line-card.active {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 12px rgba(0,0,0,0.3);
+      border: 2px solid #2196F3;
+    }
+    .line-text {
+      font-size: 1.2rem;
+      line-height: 1.5;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      justify-content: center;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      background-color: #2196F3;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #1976D2;
+    }
+    .result {
+      margin-top: 0.5rem;
+      background: #f1f1f1;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+    .micro-btn {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background-color: #FF9800;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <!-- Nút yêu cầu quyền truy cập micro luôn hiển thị riêng biệt -->
+  <button class="micro-btn" id="microAccessBtn">Request Microphone Access</button>
+
+  <div class="container">
+    <h1>Pronunciation Checker</h1>
+    <p>Select a sentence to practice and then use the controls below to record your pronunciation. After recording, you will see an evaluation below the sentence.</p>
+    
+    <!-- Các dòng nội dung -->
+    <div class="line-card" data-line="1">
+      <div class="line-text">We should ‘finish the ‘project for our ‘history ‘class</div>
+      <div class="result" id="result-1"></div>
+    </div>
+    
+    <div class="line-card" data-line="2">
+      <div class="line-text">‘Peter is re‘vising for his e‘xam ‘next ‘week.</div>
+      <div class="result" id="result-2"></div>
+    </div>
+    
+    <div class="line-card" data-line="3">
+      <div class="line-text">‘Students will ‘spend more ‘time ‘working with ‘other ‘classmates.</div>
+      <div class="result" id="result-3"></div>
+    </div>
+    
+    <div class="line-card" data-line="4">
+      <div class="line-text">I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things</div>
+      <div class="result" id="result-4"></div>
+    </div>
+    
+    <div class="line-card" data-line="5">
+      <div class="line-text">I have ‘installed some ‘apps on my ‘phone</div>
+      <div class="result" id="result-5"></div>
+    </div>
+    
+    <!-- Các nút ghi âm -->
+    <div class="controls">
+      <button id="recordBtn" disabled>Start Recording</button>
+      <button id="stopBtn" disabled>Stop Recording</button>
+    </div>
+  </div>
+
+  <script>
+    // Khai báo biến toàn cục
+    let selectedLineCard = null;
+    let selectedLineText = "";
+    let recognition;
+    let isRecording = false;
+
+    // Kiểm tra hỗ trợ SpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Your browser does not support Speech Recognition. Please use Chrome or a compatible browser.");
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.addEventListener('result', (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("Recognized:", transcript);
+        evaluatePronunciation(selectedLineText, transcript);
+      });
+
+      recognition.addEventListener('end', () => {
+        // Khi người dùng nhấn stop, kết thúc phiên ghi âm
+        if (isRecording) {
+          // Nếu vẫn đang ghi âm, không tự dừng.
+          return;
+        }
+      });
+    }
+
+    // Yêu cầu quyền truy cập micro khi nhấn nút micro riêng
+    const microAccessBtn = document.getElementById("microAccessBtn");
+    microAccessBtn.addEventListener("click", async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        alert("Microphone access granted.");
+      } catch (err) {
+        alert("Microphone access denied.");
+      }
+    });
+
+    // Xử lý sự kiện chọn dòng
+    const lineCards = document.querySelectorAll(".line-card");
+    lineCards.forEach(card => {
+      card.addEventListener("click", () => {
+        // Xóa active của tất cả các card
+        lineCards.forEach(c => c.classList.remove("active"));
+        // Đánh dấu card được chọn
+        card.classList.add("active");
+        selectedLineCard = card;
+        selectedLineText = card.querySelector(".line-text").textContent.trim();
+        console.log("Selected:", selectedLineText);
+        // Cho phép nút ghi âm
+        document.getElementById("recordBtn").disabled = false;
+      });
+    });
+
+    // Xử lý nút ghi âm
+    const recordBtn = document.getElementById("recordBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    recordBtn.addEventListener("click", () => {
+      if (!selectedLineText) {
+        alert("Please select a sentence first.");
+        return;
+      }
+      if (recognition) {
+        isRecording = true;
+        recognition.start();
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+        console.log("Recording started...");
+      }
+    });
+
+    stopBtn.addEventListener("click", () => {
+      if (recognition && isRecording) {
+        isRecording = false;
+        recognition.stop();
+        recordBtn.disabled = false;
+        stopBtn.disabled = true;
+        console.log("Recording stopped.");
+      }
+    });
+
+    // Hàm so sánh và đánh giá phát âm
+    function evaluatePronunciation(original, transcript) {
+      // Tách các từ từ nội dung gốc và transcript
+      const cleanOriginal = original.replace(/[.,?!]/g, "");
+      const originalWords = cleanOriginal.split(/\s+/);
+
+      const transcriptWords = transcript.split(/\s+/);
+
+      // Tính phần đánh giá tổng thể: so sánh từng từ (không phân biệt chữ hoa thường)
+      let correctCount = 0;
+      originalWords.forEach((word, idx) => {
+        // Loại bỏ ký tự trọng âm (ví dụ dấu ‘)
+        const normalizedWord = word.replace(/['‘’]/g, "").toLowerCase();
+        const transcriptWord = transcriptWords[idx] ? transcriptWords[idx].toLowerCase() : "";
+        if (normalizedWord === transcriptWord) {
+          correctCount++;
+        }
+      });
+      const overallScore = Math.round((correctCount / originalWords.length) * 100);
+
+      // Đánh giá riêng các từ trọng âm
+      // Các từ có ký tự ‘ được xem là từ trọng âm
+      let stressedTotal = 0;
+      let stressedCorrect = 0;
+      originalWords.forEach((word, idx) => {
+        if (word.includes("‘")) {
+          stressedTotal++;
+          const normalizedWord = word.replace(/['‘’]/g, "").toLowerCase();
+          const transcriptWord = transcriptWords[idx] ? transcriptWords[idx].toLowerCase() : "";
+          // Giả sử nếu từ đó được nhận dạng đúng, người dùng đã nhấn mạnh đúng (mô phỏng)
+          if (normalizedWord === transcriptWord) {
+            stressedCorrect++;
+          }
+        }
+      });
+      const stressedScore = stressedTotal ? Math.round((stressedCorrect / stressedTotal) * 100) : "N/A";
+
+      // Hiển thị kết quả bên dưới dòng đã chọn
+      const resultDiv = selectedLineCard.querySelector(".result");
+      resultDiv.innerHTML = `
+        <strong>Evaluation Result:</strong><br>
+        Overall Word Accuracy: ${overallScore}% (${correctCount}/${originalWords.length})<br>
+        Stressed Words Accuracy: ${stressedScore === "N/A" ? "N/A" : stressedScore + "%" }
+      `;
+    }
+  </script>
+</body>
+</html>
