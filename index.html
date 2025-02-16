@@ -35,10 +35,12 @@
       transition: transform 0.2s, box-shadow 0.2s;
       cursor: pointer;
     }
-    .line-card:hover, .line-card.active {
+    /* Khi được chọn, luôn có nền sáng và border nổi bật */
+    .line-card.active {
       transform: translateY(-3px);
       box-shadow: 0 8px 12px rgba(0,0,0,0.3);
       border: 2px solid #2196F3;
+      background-color: #f7f7f7;
     }
     .line-text {
       font-size: 1.2rem;
@@ -128,6 +130,39 @@
     let volumeSum = 0, volumeCount = 0;
     let volumeMonitorId = null;
 
+    // Hàm khởi tạo lại SpeechRecognition sau mỗi lần ghi âm
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Your browser does not support Speech Recognition. Please use Chrome or a compatible browser.");
+        return null;
+      }
+      let recog = new SpeechRecognition();
+      recog.lang = "en-US";
+      recog.interimResults = false;
+      recog.maxAlternatives = 1;
+      
+      recog.addEventListener('start', () => {
+        console.log("Speech recognition started.");
+      });
+      
+      recog.addEventListener('result', (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("Recognized:", transcript);
+        recordEndTime = Date.now();
+        evaluatePronunciation(selectedLineText, transcript);
+      });
+      
+      recog.addEventListener('end', () => {
+        console.log("Speech recognition ended.");
+      });
+      
+      recog.addEventListener('error', (e) => {
+        console.error("Speech recognition error:", e.error);
+      });
+      return recog;
+    }
+
     // ===== Yêu cầu truy cập Micro khi tải trang =====
     async function initMicrophone() {
       try {
@@ -149,37 +184,6 @@
     }
     window.addEventListener("load", initMicrophone);
 
-    // ======= Khởi tạo Speech Recognition =======
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Your browser does not support Speech Recognition. Please use Chrome or a compatible browser.");
-    } else {
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-  
-      recognition.addEventListener('start', () => {
-        console.log("Speech recognition started.");
-      });
-      
-      recognition.addEventListener('result', (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log("Recognized:", transcript);
-        recordEndTime = Date.now();
-        // Sau khi nhận được transcript, tiến hành đánh giá
-        evaluatePronunciation(selectedLineText, transcript);
-      });
-  
-      recognition.addEventListener('end', () => {
-        console.log("Speech recognition ended.");
-      });
-      
-      recognition.addEventListener('error', (e) => {
-        console.error("Speech recognition error:", e.error);
-      });
-    }
-
     // ===== Xử lý sự kiện chọn dòng =====
     const lineCards = document.querySelectorAll(".line-card");
     lineCards.forEach(card => {
@@ -197,9 +201,15 @@
     // ===== Quản lý ghi âm với nút toggle =====
     const toggleBtn = document.getElementById("toggleBtn");
     toggleBtn.addEventListener("click", () => {
+      // Nếu chưa có câu nào được chọn, tự động chọn câu đầu tiên
       if (!selectedLineText) {
-        alert("Please select a sentence first.");
-        return;
+        const firstCard = document.querySelector(".line-card");
+        if (firstCard) {
+          firstCard.classList.add("active");
+          selectedLineCard = firstCard;
+          selectedLineText = firstCard.querySelector(".line-text").textContent.trim();
+          console.log("Auto-selected sentence:", selectedLineText);
+        }
       }
       if (!isRecording) {
         // Bắt đầu ghi âm
@@ -209,15 +219,23 @@
         volumeSum = 0;
         volumeCount = 0;
         startVolumeMonitoring();
-        recognition.start();
-        toggleBtn.textContent = "Stop Recording";
-        toggleBtn.style.color = "red"; // Khi đang ghi âm -> màu đỏ
-        console.log("Recording started...");
+        // Khởi tạo lại SpeechRecognition cho mỗi phiên ghi âm
+        recognition = initSpeechRecognition();
+        if (recognition) {
+          recognition.start();
+          toggleBtn.textContent = "Stop Recording";
+          toggleBtn.style.color = "red"; // Khi đang ghi âm -> màu đỏ
+          console.log("Recording started...");
+        } else {
+          isRecording = false;
+        }
       } else {
         // Dừng ghi âm
         isRecording = false;
         stopVolumeMonitoring();
-        recognition.stop();
+        if(recognition) {
+          recognition.stop();
+        }
         toggleBtn.textContent = "Start Recording";
         toggleBtn.style.color = "blue"; // Khi chưa ghi âm -> màu xanh
         console.log("Recording stopped.");
@@ -276,4 +294,19 @@
       let volumeScore = Math.min(100, Math.round((avgVolume / 0.15) * 100));
       if (volumeScore > 100) volumeScore = 100;
 
- 
+      // ===== Đánh giá tốc độ đọc =====
+      const durationSec = (recordEndTime - recordStartTime) / 1000;
+      const wpm = Math.round((originalWords.length / durationSec) * 60);
+      let speedScore = Math.max(0, 100 - Math.abs(150 - wpm));
+  
+      // Hiển thị kết quả đánh giá trong 1 ô duy nhất bên dưới danh sách câu
+      document.getElementById("evalContent").innerHTML = `
+        <strong>Word Accuracy:</strong> ${wordAccuracy}% (${correctCount}/${originalWords.length})<br>
+        <strong>Transcript:</strong> ${resultHTML}<br>
+        <strong>Volume Score:</strong> ${volumeScore} / 100<br>
+        <strong>Speed Score:</strong> ${speedScore} / 100 (Your speed: ${wpm} wpm, ideal: ~150 wpm)
+      `;
+    }
+  </script>
+</body>
+</html>
