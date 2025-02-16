@@ -161,6 +161,7 @@
     let selectedText = null;
     let recognition = null;
     let recognizing = false;
+    let recognizedTranscript = ""; // Lưu lại transcript nhận được
     
     /***** Hàm hiển thị các dòng nội dung và xử lý dấu trọng âm *****/
     function renderTextLines() {
@@ -168,7 +169,7 @@
         const div = document.createElement("div");
         div.classList.add("text-line");
         div.dataset.index = index;
-        // Xử lý dấu trọng âm: thay thế dấu ' hoặc ‘ đứng trước chữ cái thành thẻ span với class "accent"
+        // Xử lý dấu trọng âm
         div.innerHTML = processAccent(line);
         div.addEventListener("click", () => {
           document.querySelectorAll(".text-line").forEach(el => el.classList.remove("selected"));
@@ -268,6 +269,7 @@
     if (recognition) {
       recognition.addEventListener("start", () => {
         recognizing = true;
+        recognizedTranscript = "";
         console.log("Recording started...");
       });
       
@@ -276,6 +278,7 @@
           .map(result => result[0])
           .map(result => result.transcript)
           .join("");
+        recognizedTranscript = transcript; // lưu lại transcript
         console.log("Recognized text:", transcript);
         if (selectedText) {
           const comparisons = compareTexts(selectedText, transcript);
@@ -288,8 +291,7 @@
         startBtn.disabled = false;
         stopBtn.disabled = true;
         console.log("Recording ended.");
-        if (!document.getElementById("result").innerHTML.includes("Word Accuracy") &&
-            !document.getElementById("result").innerHTML.includes("error")) {
+        if (!recognizedTranscript.trim()) {
           resultDiv.innerHTML = "<strong>No speech detected.</strong> Please try again.";
           console.log("No speech detected.");
         }
@@ -316,7 +318,7 @@
         recognition.start();
         // Bắt đầu hiển thị sóng âm
         startVolumeMonitoring();
-        waveContainer.style.display = "block";
+        document.getElementById("waveContainer").style.display = "block";
       }
     });
     
@@ -327,27 +329,26 @@
         startBtn.disabled = false;
         // Dừng hiển thị sóng âm
         stopVolumeMonitoring();
-        waveContainer.style.display = "none";
+        document.getElementById("waveContainer").style.display = "none";
       }
     });
     
     /***** Phần AudioContext để hiển thị sóng âm *****/
-    let audioContext, analyser, dataArray, mediaStream;
+    let audioCtx, analyser, dataArray, mediaStream;
     let volumeMonitorId = null;
     let volumeSum = 0, volumeCount = 0;
     
     async function initMicrophone() {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContext.createMediaStreamSource(mediaStream);
-        analyser = audioContext.createAnalyser();
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(mediaStream);
+        analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         const bufferLength = analyser.frequencyBinCount;
         dataArray = new Uint8Array(bufferLength);
         source.connect(analyser);
         console.log("Microphone and AudioContext initialized.");
-        // Cho phép nút ghi âm
         startBtn.disabled = false;
       } catch (err) {
         alert("Error accessing microphone: " + err);
@@ -368,7 +369,7 @@
         volumeSum += rms;
         volumeCount++;
         let wavePercent = Math.min(100, Math.round((rms / 0.15) * 100));
-        waveBar.style.width = wavePercent + "%";
+        document.getElementById("waveBar").style.width = wavePercent + "%";
         volumeMonitorId = requestAnimationFrame(monitor);
       }
       monitor();
