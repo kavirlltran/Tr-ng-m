@@ -161,9 +161,13 @@
     let selectedText = null;
     let recognition = null;
     let recognizing = false;
-    let recognizedTranscript = ""; // Lưu lại transcript nhận được
+    let recognizedTranscript = "";
     
-    /***** Hàm hiển thị các dòng nội dung và xử lý dấu trọng âm *****/
+    /***** Các biến cho AudioContext (sóng âm) *****/
+    let audioContext, analyser, dataArray, mediaStream;
+    let volumeMonitorId = null;
+    
+    /***** Hiển thị các dòng nội dung *****/
     function renderTextLines() {
       texts.forEach((line, index) => {
         const div = document.createElement("div");
@@ -214,7 +218,7 @@
       return matrix[b.length][a.length];
     }
     
-    /***** So sánh nội dung gốc và nội dung ghi âm theo từng từ *****/
+    /***** So sánh nội dung gốc và nội dung ghi âm *****/
     function compareTexts(expected, actual) {
       const expectedWords = expected.split(" ");
       const actualWords = actual.split(" ");
@@ -270,7 +274,7 @@
       recognition.addEventListener("start", () => {
         recognizing = true;
         recognizedTranscript = "";
-        console.log("Recording started...");
+        console.log("Speech recognition started.");
       });
       
       recognition.addEventListener("result", (event) => {
@@ -278,7 +282,7 @@
           .map(result => result[0])
           .map(result => result.transcript)
           .join("");
-        recognizedTranscript = transcript; // lưu lại transcript
+        recognizedTranscript = transcript;
         console.log("Recognized text:", transcript);
         if (selectedText) {
           const comparisons = compareTexts(selectedText, transcript);
@@ -290,7 +294,7 @@
         recognizing = false;
         startBtn.disabled = false;
         stopBtn.disabled = true;
-        console.log("Recording ended.");
+        console.log("Speech recognition ended.");
         if (!recognizedTranscript.trim()) {
           resultDiv.innerHTML = "<strong>No speech detected.</strong> Please try again.";
           console.log("No speech detected.");
@@ -298,14 +302,14 @@
       });
       
       recognition.addEventListener("error", (event) => {
-        console.error("Error during speech recognition:", event.error);
+        console.error("Speech recognition error:", event.error);
         recognizing = false;
         startBtn.disabled = false;
         stopBtn.disabled = true;
       });
     }
     
-    /***** Xử lý sự kiện cho nút ghi âm *****/
+    /***** Xử lý sự kiện nút ghi âm *****/
     startBtn.addEventListener("click", () => {
       if (!selectedText) {
         alert("Please select a text line to read.");
@@ -316,9 +320,9 @@
         startBtn.disabled = true;
         stopBtn.disabled = false;
         recognition.start();
-        // Bắt đầu hiển thị sóng âm
-        startVolumeMonitoring();
+        // Hiển thị và bắt đầu cập nhật sóng âm
         document.getElementById("waveContainer").style.display = "block";
+        startVolumeMonitoring();
       }
     });
     
@@ -327,23 +331,19 @@
         recognition.stop();
         stopBtn.disabled = true;
         startBtn.disabled = false;
-        // Dừng hiển thị sóng âm
+        // Dừng cập nhật sóng âm và ẩn thanh
         stopVolumeMonitoring();
         document.getElementById("waveContainer").style.display = "none";
       }
     });
     
-    /***** Phần AudioContext để hiển thị sóng âm *****/
-    let audioCtx, analyser, dataArray, mediaStream;
-    let volumeMonitorId = null;
-    let volumeSum = 0, volumeCount = 0;
-    
+    /***** Khởi tạo Microphone và AudioContext *****/
     async function initMicrophone() {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioCtx.createMediaStreamSource(mediaStream);
-        analyser = audioCtx.createAnalyser();
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        analyser = audioContext.createAnalyser();
         analyser.fftSize = 256;
         const bufferLength = analyser.frequencyBinCount;
         dataArray = new Uint8Array(bufferLength);
@@ -356,6 +356,7 @@
     }
     window.addEventListener("load", initMicrophone);
     
+    /***** Hiển thị sóng âm *****/
     function startVolumeMonitoring() {
       function monitor() {
         if (!recognizing) return;
@@ -366,8 +367,6 @@
           sumSquares += normalized * normalized;
         }
         const rms = Math.sqrt(sumSquares / dataArray.length);
-        volumeSum += rms;
-        volumeCount++;
         let wavePercent = Math.min(100, Math.round((rms / 0.15) * 100));
         document.getElementById("waveBar").style.width = wavePercent + "%";
         volumeMonitorId = requestAnimationFrame(monitor);
