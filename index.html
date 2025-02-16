@@ -1,75 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Advanced Pronunciation Checker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech Comparison App</title>
   <style>
-    /* Nền trang sử dụng ảnh maytinh.png */
-    body {
+    /* Reset cơ bản */
+    * {
       margin: 0;
       padding: 0;
-      font-family: Arial, sans-serif;
-      background: url('maytinh.png') no-repeat center center fixed;
-      background-size: cover;
+      box-sizing: border-box;
     }
-    .container {
-      max-width: 800px;
-      margin: 2rem auto;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    /* Nền phong cách tương lai */
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: 
+        radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px),
+        linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      background-size: 50px 50px, cover;
+      background-attachment: fixed;
+      color: #ffffff;
+      padding: 20px;
+      min-height: 100vh;
     }
     h1 {
       text-align: center;
-      margin-bottom: 1rem;
+      margin-bottom: 20px;
     }
-    p.description {
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    .instruction {
+      margin-bottom: 20px;
+      font-style: italic;
       text-align: center;
     }
-    /* Container chứa tất cả các câu */
-    #contentBox {
+    /* Container chứa các câu (dồn vào 1 ô) */
+    .text-lines {
       background: rgba(255,255,255,0.9);
       color: #000;
       border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 1.5rem;
+      padding: 10px;
+      margin-bottom: 20px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }
-    /* Mỗi câu */
-    .sentence {
-      padding: 0.5rem;
+    .text-line {
+      padding: 10px;
+      margin-bottom: 5px;
+      border: 1px solid #555;
+      border-radius: 4px;
       cursor: pointer;
-      transition: background-color 0.2s, border 0.2s;
+      transition: background 0.3s, transform 0.3s;
     }
-    .sentence:not(:last-child) {
-      border-bottom: 1px solid #ccc;
+    .text-line:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.02);
     }
-    /* Câu được chọn luôn sáng */
-    .sentence.active {
-      background-color: #f7f7f7;
-      border-left: 4px solid #2196F3;
+    /* Các dòng được chọn luôn sáng */
+    .text-line.selected {
+      background: rgba(0, 150, 136, 0.8);
+      border: 2px solid #00ffcc;
+      box-shadow: 0 0 10px 2px #00ffcc;
+      transform: scale(1.05);
     }
     .controls {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 1rem;
+      text-align: center;
+      margin-bottom: 20px;
     }
     button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
+      background: #009688;
+      color: #fff;
       border: none;
+      padding: 10px 20px;
+      margin: 5px;
       border-radius: 4px;
-      background-color: #e0e0e0;
       cursor: pointer;
-      transition: background-color 0.2s, color 0.2s;
-      margin-bottom: 1rem;
+      font-size: 16px;
+      transition: background 0.3s, color 0.3s;
     }
     button:hover {
-      background-color: #d5d5d5;
+      background: #00796b;
     }
     /* Thanh hiển thị sóng âm thanh */
     #waveContainer {
@@ -78,130 +93,249 @@
       background-color: #ccc;
       border-radius: 10px;
       overflow: hidden;
-      margin-bottom: 1rem;
+      margin: 10px auto;
       display: none; /* Ẩn khi không ghi âm */
     }
     #waveBar {
       height: 100%;
       width: 0%;
-      background-color: #2196F3;
+      background-color: #00ffcc;
       transition: width 0.1s ease-out;
     }
-    #evaluation {
-      margin-top: 1rem;
-      background: #f1f1f1;
-      color: #000;
-      padding: 0.8rem;
-      border-radius: 4px;
-      font-size: 0.95rem;
-      line-height: 1.4;
+    .result {
+      font-size: 18px;
+      line-height: 1.6;
+      margin-top: 20px;
+      text-align: center;
     }
-    #evaluation span.error {
-      color: red;
+    /* Đánh dấu các từ sai */
+    .minor {
+      background-color: yellow;
+      color: black;
+    }
+    .error {
+      background-color: red;
+      color: white;
+    }
+    /* Đánh dấu trọng âm */
+    .accent {
       font-weight: bold;
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Advanced Pronunciation Checker</h1>
-    <p class="description">
-      Select a sentence to practice and then use the button below to record your pronunciation.
-      When you stop recording, the evaluation result for the selected sentence will be displayed below.
-    </p>
-    
-    <!-- Container chứa toàn bộ 5 câu -->
-    <div id="contentBox">
-      <div class="sentence" data-line="1">We should ‘finish the ‘project for our ‘history ‘class</div>
-      <div class="sentence" data-line="2">‘Peter is re‘vising for his e‘xam ‘next ‘week.</div>
-      <div class="sentence" data-line="3">‘Students will ‘spend more ‘time ‘working with ‘other ‘classmates.</div>
-      <div class="sentence" data-line="4">I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things</div>
-      <div class="sentence" data-line="5">I have ‘installed some ‘apps on my ‘phone</div>
+    <h1>Speech Comparison App</h1>
+    <div class="instruction">
+      Select one text line below, then press the "Start Recording" button to read and compare.
     </div>
-    
-    <!-- Nút ghi âm (toggle: start/stop) và thanh sóng âm -->
+    <!-- Container chứa tất cả các câu -->
+    <div class="text-lines" id="text-lines"></div>
     <div class="controls">
-      <button id="toggleBtn" disabled style="color: blue;">Start Recording</button>
+      <button id="startBtn" disabled>Start Recording</button>
+      <button id="stopBtn" disabled>Stop Recording</button>
       <div id="waveContainer">
         <div id="waveBar"></div>
       </div>
     </div>
-    
-    <!-- Khu vực hiển thị kết quả đánh giá -->
-    <div id="evaluation">
-      <strong>Evaluation Result:</strong> <span id="evalContent">Please select a sentence and record.</span>
-    </div>
+    <!-- Kết quả so sánh -->
+    <div class="result" id="result">Please select a text line and record.</div>
   </div>
-
+  
   <script>
-    // ======= Các biến toàn cục =======
-    let selectedSentence = null;
-    let selectedSentenceText = "";
-    let recognition;
-    let isRecording = false;
-    let recordStartTime, recordEndTime;
-
-    // Các biến để đo âm lượng qua AudioContext
-    let audioContext, analyser, dataArray, mediaStream;
-    let volumeSum = 0, volumeCount = 0;
-    let volumeMonitorId = null;
-
-    // Tham chiếu đến các phần tử
-    const waveContainer = document.getElementById("waveContainer");
-    const waveBar = document.getElementById("waveBar");
-    const sentences = document.querySelectorAll(".sentence");
-
-    // Xử lý chọn câu: khi click vào một câu, tất cả được bỏ active và câu đó được active
-    sentences.forEach(sentence => {
-      sentence.addEventListener("click", () => {
-        sentences.forEach(s => s.classList.remove("active"));
-        sentence.classList.add("active");
-        selectedSentence = sentence;
-        selectedSentenceText = sentence.textContent.trim();
-        console.log("Selected sentence:", selectedSentenceText);
-        document.getElementById("evalContent").textContent = "Ready to record the selected sentence.";
+    /***** Dữ liệu nội dung *****/
+    const texts = [
+      "We should ‘finish the ‘project for our ‘history 'class",
+      "‘Peter is re‘vising for his e‘xam ‘next ‘week",
+      "‘Students will ‘spend more ‘time ‘working with ‘other ‘classmates",
+      "I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things",
+      "I have ‘installed some ‘apps on my ‘phone"
+    ];
+    
+    const textLinesContainer = document.getElementById("text-lines");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const resultDiv = document.getElementById("result");
+    
+    let selectedText = null;
+    let recognition = null;
+    let recognizing = false;
+    
+    /***** Hàm hiển thị các dòng nội dung và xử lý dấu trọng âm *****/
+    function renderTextLines() {
+      texts.forEach((line, index) => {
+        const div = document.createElement("div");
+        div.classList.add("text-line");
+        div.dataset.index = index;
+        // Xử lý dấu trọng âm: thay thế dấu ' hoặc ‘ đứng trước chữ cái thành thẻ span với class "accent"
+        div.innerHTML = processAccent(line);
+        div.addEventListener("click", () => {
+          document.querySelectorAll(".text-line").forEach(el => el.classList.remove("selected"));
+          div.classList.add("selected");
+          selectedText = line;
+          startBtn.disabled = false;
+          resultDiv.innerHTML = "Ready to record the selected sentence.";
+        });
+        textLinesContainer.appendChild(div);
       });
-    });
-
-    // Hàm khởi tạo lại SpeechRecognition sau mỗi lần ghi âm
-    function initSpeechRecognition() {
+    }
+    
+    /* Hàm xử lý dấu trọng âm */
+    function processAccent(text) {
+      return text.replace(/['‘]([A-Za-z]+)/g, "<span class='accent'>$1</span>");
+    }
+    
+    /***** Hàm tính khoảng cách Levenshtein giữa 2 chuỗi *****/
+    function levenshtein(a, b) {
+      a = a.toLowerCase();
+      b = b.toLowerCase();
+      const matrix = [];
+      for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+      }
+      for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+      return matrix[b.length][a.length];
+    }
+    
+    /***** So sánh nội dung gốc và nội dung ghi âm theo từng từ *****/
+    function compareTexts(expected, actual) {
+      const expectedWords = expected.split(" ");
+      const actualWords = actual.split(" ");
+      const comparisons = [];
+      for (let i = 0; i < expectedWords.length; i++) {
+        const expectedWord = expectedWords[i];
+        const actualWord = actualWords[i] || "";
+        if (expectedWord.toLowerCase() === actualWord.toLowerCase()) {
+          comparisons.push({ word: expectedWord, status: "correct" });
+        } else {
+          const dist = levenshtein(expectedWord, actualWord);
+          const ratio = dist / Math.max(expectedWord.length, actualWord.length);
+          if (ratio > 0.5) {
+            comparisons.push({ word: expectedWord, status: "error" });
+          } else if (ratio > 0) {
+            comparisons.push({ word: expectedWord, status: "minor" });
+          } else {
+            comparisons.push({ word: expectedWord, status: "correct" });
+          }
+        }
+      }
+      return comparisons;
+    }
+    
+    /***** Hiển thị kết quả so sánh *****/
+    function displayResult(comparisons) {
+      const html = comparisons.map(item => {
+        if (item.status === "correct") return item.word;
+        else if (item.status === "minor") return `<span class="minor">${item.word}</span>`;
+        else if (item.status === "error") return `<span class="error">${item.word}</span>`;
+      }).join(" ");
+      resultDiv.innerHTML = html;
+    }
+    
+    /***** Khởi tạo Speech Recognition *****/
+    function initRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert("Your browser does not support Speech Recognition. Please use Chrome or a compatible browser.");
+        alert("Your browser does not support Speech Recognition.");
         return null;
       }
-      let recog = new SpeechRecognition();
+      const recog = new SpeechRecognition();
       recog.lang = "en-US";
       recog.interimResults = false;
       recog.maxAlternatives = 1;
       recog.continuous = false;
-      
-      recog.addEventListener('start', () => {
-        console.log("Speech recognition started.");
+      return recog;
+    }
+    
+    recognition = initRecognition();
+    
+    if (recognition) {
+      recognition.addEventListener("start", () => {
+        recognizing = true;
+        console.log("Recording started...");
       });
       
-      recog.addEventListener('result', (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log("Recognized:", transcript);
-        recordEndTime = Date.now();
-        evaluatePronunciation(selectedSentenceText, transcript);
+      recognition.addEventListener("result", (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0])
+          .map(result => result.transcript)
+          .join("");
+        console.log("Recognized text:", transcript);
+        if (selectedText) {
+          const comparisons = compareTexts(selectedText, transcript);
+          displayResult(comparisons);
+        }
       });
       
-      recog.addEventListener('end', () => {
-        console.log("Speech recognition ended.");
-        if (!isRecording && !document.getElementById("evalContent").innerHTML.includes("Word Accuracy")) {
-          document.getElementById("evalContent").innerHTML = "<strong>No speech detected.</strong> Please try again.";
+      recognition.addEventListener("end", () => {
+        recognizing = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        console.log("Recording ended.");
+        if (!document.getElementById("result").innerHTML.includes("Word Accuracy") &&
+            !document.getElementById("result").innerHTML.includes("error")) {
+          resultDiv.innerHTML = "<strong>No speech detected.</strong> Please try again.";
           console.log("No speech detected.");
         }
       });
       
-      recog.addEventListener('error', (e) => {
-        console.error("Speech recognition error:", e.error);
+      recognition.addEventListener("error", (event) => {
+        console.error("Error during speech recognition:", event.error);
+        recognizing = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
       });
-      return recog;
     }
-
-    // Yêu cầu truy cập Micro khi tải trang
+    
+    /***** Xử lý sự kiện cho nút ghi âm *****/
+    startBtn.addEventListener("click", () => {
+      if (!selectedText) {
+        alert("Please select a text line to read.");
+        return;
+      }
+      if (recognition && !recognizing) {
+        resultDiv.innerHTML = "Recording... Please read the text.";
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        recognition.start();
+        // Bắt đầu hiển thị sóng âm
+        startVolumeMonitoring();
+        waveContainer.style.display = "block";
+      }
+    });
+    
+    stopBtn.addEventListener("click", () => {
+      if (recognition && recognizing) {
+        recognition.stop();
+        stopBtn.disabled = true;
+        startBtn.disabled = false;
+        // Dừng hiển thị sóng âm
+        stopVolumeMonitoring();
+        waveContainer.style.display = "none";
+      }
+    });
+    
+    /***** Phần AudioContext để hiển thị sóng âm *****/
+    let audioContext, analyser, dataArray, mediaStream;
+    let volumeMonitorId = null;
+    let volumeSum = 0, volumeCount = 0;
+    
     async function initMicrophone() {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -213,57 +347,17 @@
         dataArray = new Uint8Array(bufferLength);
         source.connect(analyser);
         console.log("Microphone and AudioContext initialized.");
-        document.getElementById("toggleBtn").disabled = false;
+        // Cho phép nút ghi âm
+        startBtn.disabled = false;
       } catch (err) {
         alert("Error accessing microphone: " + err);
       }
     }
     window.addEventListener("load", initMicrophone);
-
-    // Quản lý ghi âm với nút toggle
-    const toggleBtn = document.getElementById("toggleBtn");
-    toggleBtn.addEventListener("click", () => {
-      // Nếu chưa có câu nào được chọn, tự động chọn câu đầu tiên
-      if (!selectedSentenceText) {
-        const first = document.querySelector(".sentence");
-        if (first) {
-          first.classList.add("active");
-          selectedSentence = first;
-          selectedSentenceText = first.textContent.trim();
-          console.log("Auto-selected sentence:", selectedSentenceText);
-        }
-      }
-      if (!isRecording) {
-        isRecording = true;
-        recordStartTime = Date.now();
-        volumeSum = 0;
-        volumeCount = 0;
-        waveContainer.style.display = "block";
-        startVolumeMonitoring();
-        recognition = initSpeechRecognition();
-        if (recognition) {
-          recognition.start();
-          toggleBtn.textContent = "Stop Recording";
-          toggleBtn.style.color = "red";
-          console.log("Recording started...");
-        } else {
-          isRecording = false;
-        }
-      } else {
-        isRecording = false;
-        stopVolumeMonitoring();
-        if (recognition) recognition.stop();
-        toggleBtn.textContent = "Start Recording";
-        toggleBtn.style.color = "blue";
-        waveContainer.style.display = "none";
-        console.log("Recording stopped.");
-      }
-    });
-
-    // Hàm theo dõi âm lượng và cập nhật thanh sóng âm
+    
     function startVolumeMonitoring() {
       function monitor() {
-        if (!isRecording) return;
+        if (!recognizing) return;
         analyser.getByteTimeDomainData(dataArray);
         let sumSquares = 0;
         for (let i = 0; i < dataArray.length; i++) {
@@ -279,47 +373,16 @@
       }
       monitor();
     }
+    
     function stopVolumeMonitoring() {
       if (volumeMonitorId) {
         cancelAnimationFrame(volumeMonitorId);
         volumeMonitorId = null;
       }
     }
-
-    // Hàm đánh giá phát âm
-    function evaluatePronunciation(original, transcript) {
-      console.log("Evaluation triggered with transcript:", transcript);
-      const cleanOriginal = original.replace(/[.,?!]/g, "");
-      const originalWords = cleanOriginal.split(/\s+/);
-      const transcriptWords = transcript.split(/\s+/);
-      let correctCount = 0;
-      let resultHTML = "";
-      originalWords.forEach((word, idx) => {
-        const normalizedOriginal = word.replace(/['‘’]/g, "").toLowerCase();
-        const transcriptWord = transcriptWords[idx] ? transcriptWords[idx].toLowerCase() : "";
-        if (normalizedOriginal === transcriptWord) {
-          resultHTML += word + " ";
-          correctCount++;
-        } else {
-          resultHTML += `<span class="error">${word}</span> `;
-        }
-      });
-      const wordAccuracy = Math.round((correctCount / originalWords.length) * 100);
-      const avgVolume = volumeCount ? volumeSum / volumeCount : 0;
-      let volumeScore = Math.min(100, Math.round((avgVolume / 0.15) * 100));
-      if (volumeScore > 100) volumeScore = 100;
-      const durationSec = (recordEndTime - recordStartTime) / 1000;
-      const wpm = Math.round((originalWords.length / durationSec) * 60);
-      let speedScore = Math.max(0, 100 - Math.abs(150 - wpm));
-  
-      document.getElementById("evalContent").innerHTML = `
-        <strong>Word Accuracy:</strong> ${wordAccuracy}% (${correctCount}/${originalWords.length})<br>
-        <strong>Transcript:</strong> ${resultHTML}<br>
-        <strong>Volume Score:</strong> ${volumeScore} / 100<br>
-        <strong>Speed Score:</strong> ${speedScore} / 100 (Your speed: ${wpm} wpm, ideal: ~150 wpm)
-      `;
-      console.log("Evaluation result displayed.");
-    }
+    
+    /***** Khi load, hiển thị các dòng nội dung *****/
+    renderTextLines();
   </script>
 </body>
 </html>
