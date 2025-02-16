@@ -173,6 +173,8 @@
       recog.lang = "en-US";
       recog.interimResults = false;
       recog.maxAlternatives = 1;
+      // Thiết lập continuous nếu cần (ở đây để false nhằm đảm bảo ghi âm một lần)
+      recog.continuous = false;
       
       recog.addEventListener('start', () => {
         console.log("Speech recognition started.");
@@ -187,6 +189,11 @@
       
       recog.addEventListener('end', () => {
         console.log("Speech recognition ended.");
+        // Nếu không nhận được kết quả nào, hiển thị thông báo
+        if(!isRecording && !document.getElementById("evalContent").innerHTML.includes("Word Accuracy")) {
+          document.getElementById("evalContent").innerHTML = "<strong>No speech detected.</strong> Please try again.";
+          console.log("No speech detected.");
+        }
       });
       
       recog.addEventListener('error', (e) => {
@@ -337,19 +344,4 @@
       if (volumeScore > 100) volumeScore = 100;
 
       // ===== Đánh giá tốc độ đọc =====
-      const durationSec = (recordEndTime - recordStartTime) / 1000;
-      const wpm = Math.round((originalWords.length / durationSec) * 60);
-      let speedScore = Math.max(0, 100 - Math.abs(150 - wpm));
-  
-      // Hiển thị kết quả đánh giá trong 1 ô duy nhất bên dưới danh sách câu
-      document.getElementById("evalContent").innerHTML = `
-        <strong>Word Accuracy:</strong> ${wordAccuracy}% (${correctCount}/${originalWords.length})<br>
-        <strong>Transcript:</strong> ${resultHTML}<br>
-        <strong>Volume Score:</strong> ${volumeScore} / 100<br>
-        <strong>Speed Score:</strong> ${speedScore} / 100 (Your speed: ${wpm} wpm, ideal: ~150 wpm)
-      `;
-      console.log("Evaluation result displayed.");
-    }
-  </script>
-</body>
-</html>
+      const durationSec = (recordEn
